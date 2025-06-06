@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Tree Falling</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const NUM_FRAMES = 6;
+        const backgrounds = [];
+        const trees = [];
+
+        let dragStartY = null;
+        let dragOffset = 0;
+        let falling = false;
+        let currentFrame = 0;
+
+        // Load assets
+        for (let i = 1; i <= NUM_FRAMES; i++) {
+            const bgImg = new Image();
+            bgImg.src = `forestbg${i}.png`;
+            backgrounds.push(bgImg);
+
+            const treeImg = new Image();
+            treeImg.src = `gianttree${i}.png`;
+            trees.push(treeImg);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background based on the current frame
+            if (backgrounds[currentFrame].complete) {
+                ctx.drawImage(backgrounds[currentFrame], 0, 0, canvas.width, canvas.height);
+            }
+
+            // Draw the tree based on the current frame
+            if (trees[currentFrame].complete) {
+                const treeX = (canvas.width - trees[currentFrame].width) / 2;
+                const treeY = canvas.height - trees[currentFrame].height + dragOffset;
+                ctx.drawImage(trees[currentFrame], treeX, treeY);
+            }
+        }
+
+        function updateFrame() {
+            // Determine frame based on dragOffset
+            const frameIndex = Math.min(
+                Math.max(Math.floor((dragOffset / canvas.height) * NUM_FRAMES), 0),
+                NUM_FRAMES - 1
+            );
+
+            currentFrame = frameIndex;
+
+            // End game if the tree reaches the bottom
+            if (falling && currentFrame === NUM_FRAMES - 1) {
+                console.log("Tree has fallen completely.");
+            }
+        }
+
+        canvas.addEventListener('mousedown', (event) => {
+            if (!falling) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+
+                const treeX = (canvas.width - trees[currentFrame].width) / 2;
+                const treeY = canvas.height - trees[currentFrame].height + dragOffset;
+                const trunkWidth = trees[currentFrame].width / 4;
+
+                if (
+                    mouseX > treeX + trunkWidth &&
+                    mouseX < treeX + trunkWidth * 3 &&
+                    mouseY > treeY
+                ) {
+                    dragStartY = mouseY - dragOffset;
+                    canvas.addEventListener('mousemove', onDrag);
+                    canvas.addEventListener('mouseup', stopDrag);
+                }
+            }
+        });
+
+        function onDrag(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseY = event.clientY - rect.top;
+
+            // Update dragOffset based on mouse movement
+            dragOffset = Math.max(Math.min(mouseY - dragStartY, canvas.height), 0);
+            updateFrame();
+        }
+
+        function stopDrag() {
+            canvas.removeEventListener('mousemove', onDrag);
+            canvas.removeEventListener('mouseup', stopDrag);
+
+            // Trigger falling state if dragged sufficiently
+            if (dragOffset >= canvas.height * 0.8) {
+                falling = true;
+            }
+        }
+
+        function animate() {
+            draw();
+
+            // Slowly drop the tree if in falling state
+            if (falling) {
+                dragOffset += 5; // Adjust fall speed here
+                updateFrame();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
